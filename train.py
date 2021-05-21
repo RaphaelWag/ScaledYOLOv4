@@ -77,9 +77,12 @@ def train(hyp, opt, device, tb_writer=None):
     accumulate = max(round(nbs / total_batch_size), 1)  # accumulate loss before optimizing
     hyp['weight_decay'] *= total_batch_size * accumulate / nbs  # scale weight_decay
 
-    pg0, pg1, pg2 = [], [], []  # optimizer parameter groups
+    pg0, pg1, pg2 = [], [], []  # optimizer parameter group
+    
     for k, v in model.named_parameters():
-        v.requires_grad = True
+        
+        layer = int(k.split('.')[1])
+        v.requieres_grad = layer > opt.freeze
         if '.bias' in k:
             pg2.append(v)  # biases
         elif '.weight' in k and '.bn' not in k:
@@ -310,7 +313,9 @@ def train(hyp, opt, device, tb_writer=None):
                                                  model=ema.ema.module if hasattr(ema.ema, 'module') else ema.ema,
                                                  single_cls=opt.single_cls,
                                                  dataloader=testloader,
-                                                 save_dir=log_dir)
+                                                 save_dir=log_dir,
+                                                 verbose=opt.verbose,
+                                                 epoch=epoch)
 
             # Write
             with open(results_file, 'a') as f:
@@ -343,7 +348,7 @@ def train(hyp, opt, device, tb_writer=None):
 
                 # Save last, best and delete
                 torch.save(ckpt, last)
-                if epoch >= (epochs-30):
+                if epoch % opt.save_int == 0:
                     torch.save(ckpt, last.replace('.pt','_{:03d}.pt'.format(epoch)))
                 if best_fitness == fi:
                     torch.save(ckpt, best)
@@ -397,7 +402,11 @@ if __name__ == '__main__':
     parser.add_argument('--sync-bn', action='store_true', help='use SyncBatchNorm, only available in DDP mode')
     parser.add_argument('--local_rank', type=int, default=-1, help='DDP parameter, do not modify')
     parser.add_argument('--logdir', type=str, default='runs/', help='logging directory')
+    parser.add_argument('--save_int', type=int, default=1000, help='intervall for saving weights additional to last and best')
+    parser.add_argument('--freeze', type=int, default=-1, help='# modules to freeze during training')
+    parser.add_argument('--verbose', type=bool, default=False, help='saving validation metrics per class each epoch')
     opt = parser.parse_args()
+
 
     # Resume
     if opt.resume:
@@ -420,6 +429,7 @@ if __name__ == '__main__':
 
     # DDP mode
     if opt.local_rank != -1:
+        print(torch.cuda.device_count())
         assert torch.cuda.device_count() > opt.local_rank
         torch.cuda.set_device(opt.local_rank)
         device = torch.device('cuda', opt.local_rank)

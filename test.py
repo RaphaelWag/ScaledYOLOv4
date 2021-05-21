@@ -32,7 +32,12 @@ def test(data,
          dataloader=None,
          save_dir='',
          merge=False,
-         save_txt=False):
+         save_txt=False,
+         epoch=0):
+   
+    if verbose:
+        if not os.path.exists(str(Path(save_dir) / 'class_metrics')):
+            os.mkdir(str(Path(save_dir) / 'class_metrics'))
     # Initialize/load model and set device
     training = model is not None
     if training:  # called by train.py
@@ -204,9 +209,11 @@ def test(data,
 
     # Print results per class
     if verbose and nc > 1 and len(stats):
+        class_results_file = open(str(Path(save_dir) / 'class_metrics') + '/' + str(epoch) + '.txt', 'w+')
         for i, c in enumerate(ap_class):
-            print(pf % (names[c], seen, nt[c], p[i], r[i], ap50[i], ap[i]))
-
+           # print(pf % (names[c], seen, nt[c], p[i], r[i], ap50[i], ap[i]))
+            class_results_file.write(str(names[c]) + ' ' + str(seen) + ' ' + str(nt[c]) + ' ' + str(p[i]) + ' ' + str(r[i]) + ' ' + str(ap50[i]) + ' ' + str(ap[i]) + '\n' )
+        class_results_file.close()
     # Print speeds
     t = tuple(x / seen * 1E3 for x in (t0, t1, t0 + t1)) + (imgsz, imgsz, batch_size)  # tuple
     if not training:
@@ -260,6 +267,7 @@ if __name__ == '__main__':
     parser.add_argument('--merge', action='store_true', help='use Merge NMS')
     parser.add_argument('--verbose', action='store_true', help='report mAP by class')
     parser.add_argument('--save-txt', action='store_true', help='save results to *.txt')
+    parser.add_argument('--txt_path', default='metrics.txt', help='path for saving results')
     opt = parser.parse_args()
     opt.save_json |= opt.data.endswith('coco.yaml')
     opt.data = check_file(opt.data)  # check file
@@ -275,7 +283,8 @@ if __name__ == '__main__':
              opt.save_json,
              opt.single_cls,
              opt.augment,
-             opt.verbose)
+             opt.verbose,
+             opt.txt_path)
 
     elif opt.task == 'study':  # run over a range of settings and save/plot
         for weights in ['']:
