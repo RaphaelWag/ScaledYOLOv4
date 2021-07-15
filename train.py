@@ -82,7 +82,7 @@ def train(hyp, opt, device, tb_writer=None):
     for k, v in model.named_parameters():
         
         layer = int(k.split('.')[1])
-        v.requieres_grad = layer > opt.freeze
+        v.requires_grad = layer > opt.freeze
         if '.bias' in k:
             pg2.append(v)  # biases
         elif '.weight' in k and '.bn' not in k:
@@ -404,7 +404,7 @@ if __name__ == '__main__':
     parser.add_argument('--logdir', type=str, default='runs/', help='logging directory')
     parser.add_argument('--save_int', type=int, default=1000, help='intervall for saving weights additional to last and best')
     parser.add_argument('--freeze', type=int, default=-1, help='# modules to freeze during training')
-    parser.add_argument('--verbose', type=bool, default=False, help='saving validation metrics per class each epoch')
+    parser.add_argument('--verbose', action='store_true', help='saving validation metrics per class each epoch')
     opt = parser.parse_args()
 
 
